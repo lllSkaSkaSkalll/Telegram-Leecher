@@ -9,6 +9,9 @@ from pyrogram.types import Message
 class BOT:
     SOURCE = []
     TASK = None
+    SPLIT_SIZE_MB = 1900
+    SPLIT_SIZE_BYTES = SPLIT_SIZE_MB * 1024 * 1024
+    
     class Setting:
         stream_upload = "Media"
         convert_video = "Yes"
