@@ -112,7 +112,8 @@ async def videoConverter(file: str):
 
 async def sizeChecker(file_path, remove: bool):
     global Paths
-    max_size = 2097152000  # 2 GB
+    # max_size = 2097152000  # 2 GB
+    max_size = BOT.SPLIT_SIZE_BYTES
     file_size = os.stat(file_path).st_size
 
     if file_size > max_size:
@@ -132,7 +133,7 @@ async def sizeChecker(file_path, remove: bool):
             f_type = fileType(file_path)
             if f_type == "video" and BOT.Options.is_split:
                 # TODO: Store the size in a constant variable
-                await splitVideo(file_path, 2000, remove)
+                await splitVideo(file_path, BOT.SPLIT_SIZE_MB, remove)
             else:
                 await archive(file_path, True, remove)
             await sleep(2)
@@ -146,7 +147,7 @@ async def archive(path, is_split, remove: bool):
     dir_p, p_name = ospath.split(path)
     r = "-r" if ospath.isdir(path) else ""
     if is_split:
-        split = "-s 2000m" if len(BOT.Options.zip_pswd) == 0 else "-v2000m"
+        split = f"-s {BOT.SPLIT_SIZE_MB}m" if len(BOT.Options.zip_pswd) == 0 else f"-v{BOT.SPLIT_SIZE_MB}m"
     else:
         split = ""
     if len(BOT.Options.custom_name) != 0:
