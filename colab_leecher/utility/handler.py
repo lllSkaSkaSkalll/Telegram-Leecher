@@ -37,9 +37,18 @@ from colab_leecher.utility.helper import (
     sysINFO,
 )
 
-
 async def Leech(folder_path: str, remove: bool):
     global BOT, BotTimes, Messages, Paths, Transfer
+
+    def copy_target(src_path: str, dst_root: str):
+        rel_path = ospath.relpath(src_path, folder_path)
+        dst_path = ospath.join(dst_root, rel_path)
+        dst_dir = ospath.dirname(dst_path)
+        if not ospath.exists(dst_dir):
+            makedirs(dst_dir, exist_ok=True)
+        shutil.copy2(src_path, dst_path)
+        return dst_path
+
     files = [str(p) for p in pathlib.Path(folder_path).glob("**/*") if p.is_file()]
     for f in natsorted(files):
         file_path = ospath.join(folder_path, f)
@@ -48,7 +57,7 @@ async def Leech(folder_path: str, remove: bool):
         if BOT.Options.convert_video and fileType(file_path) == "video":
             file_path = await videoConverter(file_path)
 
-    Transfer.total_down_size = getSize(folder_path)
+        Transfer.total_down_size = getSize(folder_path)
 
     files = [str(p) for p in pathlib.Path(folder_path).glob("**/*") if p.is_file()]
     for f in natsorted(files):
@@ -56,12 +65,11 @@ async def Leech(folder_path: str, remove: bool):
 
         leech = await sizeChecker(file_path, remove)
 
-        if leech:  # File was splitted
+        if leech:
             if ospath.exists(file_path) and remove:
-                os.remove(file_path)  # Delete original Big Zip file
+                os.remove(file_path)
 
             dir_list = natsorted(os.listdir(Paths.temp_zpath))
-
             count = 1
 
             for dir_path in dir_list:
@@ -69,8 +77,47 @@ async def Leech(folder_path: str, remove: bool):
                 file_name = ospath.basename(short_path)
                 new_path = shortFileName(short_path)
                 os.rename(short_path, new_path)
+
+                if BOT.Mode.mode == "local-mirror":
+                    copied = copy_target(new_path, Paths.local_mirror_dir)
+                    Transfer.up_bytes.append(os.stat(copied).st_size)
+                else:
+                    BotTimes.current_time = time()
+                    Messages.status_head = f"<b>📤 UPLOADING SPLIT » {count} OF {len(dir_list)} Files</b>\n\n<code>{file_name}</code>\n"
+                    try:
+                        MSG.status_msg = await MSG.status_msg.edit_text(
+                            text=Messages.task_msg
+                            + Messages.status_head
+                            + "\n⏳ __Starting.....__"
+                            + sysINFO(),
+                            reply_markup=keyboard(),
+                        )
+                    except Exception as d:
+                        logging.info(d)
+                    await upload_file(new_path, file_name)
+                    Transfer.up_bytes.append(os.stat(new_path).st_size)
+
+                count += 1
+
+            shutil.rmtree(Paths.temp_zpath)
+
+        else:
+            if not ospath.exists(Paths.temp_files_dir):
+                makedirs(Paths.temp_files_dir)
+
+            if not remove:
+                file_path = shutil.copy(file_path, Paths.temp_files_dir)
+
+            file_name = ospath.basename(file_path)
+            new_path = shortFileName(file_path)
+            os.rename(file_path, new_path)
+
+            if BOT.Mode.mode == "local-mirror":
+                copied = copy_target(new_path, Paths.local_mirror_dir)
+                Transfer.up_bytes.append(os.stat(copied).st_size)
+            else:
                 BotTimes.current_time = time()
-                Messages.status_head = f"<b>📤 UPLOADING SPLIT » {count} OF {len(dir_list)} Files</b>\n\n<code>{file_name}</code>\n"
+                Messages.status_head = f"<b>📤 UPLOADING » </b>\n\n<code>{file_name}</code>\n"
                 try:
                     MSG.status_msg = await MSG.status_msg.edit_text(
                         text=Messages.task_msg
@@ -80,41 +127,10 @@ async def Leech(folder_path: str, remove: bool):
                         reply_markup=keyboard(),
                     )
                 except Exception as d:
-                    logging.info(d)
+                    logging.error(f"Error updating status bar: {d}")
+                file_size = os.stat(new_path).st_size
                 await upload_file(new_path, file_name)
-                Transfer.up_bytes.append(os.stat(new_path).st_size)
-
-                count += 1
-
-            shutil.rmtree(Paths.temp_zpath)
-
-        else:
-            if not ospath.exists(Paths.temp_files_dir): # Create Directory
-                makedirs(Paths.temp_files_dir)
-
-            if not remove:  # Copy To Temp Dir for Renaming Purposes
-                file_path = shutil.copy(file_path, Paths.temp_files_dir)
-            file_name = ospath.basename(file_path)
-            # Trimming filename upto 50 chars
-            new_path = shortFileName(file_path)
-            os.rename(file_path, new_path)
-            BotTimes.current_time = time()
-            Messages.status_head = (
-                f"<b>📤 UPLOADING » </b>\n\n<code>{file_name}</code>\n"
-            )
-            try:
-                MSG.status_msg = await MSG.status_msg.edit_text(
-                    text=Messages.task_msg
-                    + Messages.status_head
-                    + "\n⏳ __Starting.....__"
-                    + sysINFO(),
-                    reply_markup=keyboard(),
-                )
-            except Exception as d:
-                logging.error(f"Error updating status bar: {d}")
-            file_size = os.stat(new_path).st_size
-            await upload_file(new_path, file_name)
-            Transfer.up_bytes.append(file_size)
+                Transfer.up_bytes.append(file_size)
 
             if remove:
                 if ospath.exists(new_path):
@@ -125,6 +141,7 @@ async def Leech(folder_path: str, remove: bool):
 
     if remove and ospath.exists(folder_path):
         shutil.rmtree(folder_path)
+
     if ospath.exists(Paths.thumbnail_ytdl):
         shutil.rmtree(Paths.thumbnail_ytdl)
     if ospath.exists(Paths.temp_files_dir):
