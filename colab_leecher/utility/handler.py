@@ -49,6 +49,9 @@ async def Leech(folder_path: str, remove: bool):
         shutil.copy2(src_path, dst_path)
         return dst_path
 
+    if not ospath.exists(Paths.local_mirror_dir):
+        makedirs(Paths.local_mirror_dir, exist_ok=True)
+        
     files = [str(p) for p in pathlib.Path(folder_path).glob("**/*") if p.is_file()]
     for f in natsorted(files):
         file_path = ospath.join(folder_path, f)
