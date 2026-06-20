@@ -13,7 +13,7 @@
 
 ## 🎓 **How To Deploy**
 
-<h3>Read <a href="https://github.com/XronTrix10/Telegram-Leecher/wiki/INSTRUCTIONS">INSTRUCTIONS</a></h3>
+<h3>Read <a href="https://github.com/lllSkaSkaSkalll/Telegram-Leecher/wiki/Instructions">INSTRUCTIONS</a></h3>
 
 <br>
 
